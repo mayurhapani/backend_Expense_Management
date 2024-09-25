@@ -8,6 +8,7 @@ import {
   bulkUploadExpenses,
   bulkDeleteExpenses,
   getExpenseSummary,
+  exportExpenses,
 } from "../controllers/expense.controller.js";
 import { isAuth } from "../middlewares/isAuth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
@@ -25,6 +26,7 @@ expenseRouter.get("/summary", getExpenseSummary);
 expenseRouter.patch("/:id", updateExpense);
 expenseRouter.delete("/:id", deleteExpense);
 expenseRouter.post("/bulk-upload", upload.single("file"), bulkUploadExpenses);
-expenseRouter.post("/bulk-delete", authorize("admin"), bulkDeleteExpenses);
+expenseRouter.post("/bulk-delete", bulkDeleteExpenses);
+expenseRouter.get("/export", exportExpenses);
 
 export { expenseRouter };

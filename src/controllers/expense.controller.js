@@ -3,7 +3,9 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { parse } from "csv-parse/sync";
+import { stringify } from "csv-stringify/sync";
 import redisClient from "../config/redis.js";
+import { parse as parseDate } from 'date-fns';
 
 const addExpense = asyncHandler(async (req, res) => {
   try {
@@ -235,28 +237,82 @@ const getExpenseStatistics = asyncHandler(async (req, res) => {
 });
 
 const bulkUploadExpenses = asyncHandler(async (req, res) => {
+  console.log("Received file:", req.file);  // Log the received file
+
   if (!req.file) {
     throw new ApiError(400, "CSV file is required");
   }
 
   const userId = req.user._id;
   const csvData = req.file.buffer.toString();
+  console.log("CSV Data:", csvData);  // Log the CSV data
 
   const records = parse(csvData, {
     columns: true,
     skip_empty_lines: true,
+  }).filter(record => Object.values(record).some(value => value.trim() !== ''));
+
+  const validExpenses = [];
+  const errors = [];
+
+  records.forEach((record, index) => {
+    const rowErrors = [];
+    const amount = parseFloat(record.amount);
+    let date;
+    try {
+      date = parseDate(record.date, 'M/d/yyyy', new Date());
+      if (isNaN(date.getTime())) {
+        throw new Error('Invalid date');
+      }
+    } catch (error) {
+      rowErrors.push("Invalid date format. Use M/D/YYYY");
+    }
+    if (isNaN(amount)) {
+      rowErrors.push("Invalid amount");
+    }
+    if (!record.description) {
+      rowErrors.push("Description is required");
+    }
+    if (!record.category) {
+      rowErrors.push("Category is required");
+    }
+    if (!record.paymentMethod) {
+      rowErrors.push("Payment method is required");
+    }
+
+    if (rowErrors.length > 0) {
+      errors.push(`Row ${index + 2}: ${rowErrors.join(", ")}`);
+    } else if (amount && date && record.description && record.category && record.paymentMethod) {
+      validExpenses.push({
+        user: userId,
+        amount,
+        description: record.description,
+        date,
+        category: record.category,
+        paymentMethod: record.paymentMethod,
+      });
+    }
   });
 
-  const expenses = records.map((record) => ({
-    user: userId,
-    amount: parseFloat(record.amount),
-    description: record.description,
-    date: new Date(record.date),
-    category: record.category,
-    paymentMethod: record.paymentMethod,
-  }));
+  if (errors.length > 0) {
+    return res.status(400).json(
+      new ApiResponse(400, { errors, validCount: validExpenses.length }, "Validation errors in CSV data")
+    );
+  }
 
-  const result = await expenseModel.insertMany(expenses);
+  if (validExpenses.length === 0) {
+    return res.status(400).json(
+      new ApiResponse(400, null, "No valid expenses found in CSV")
+    );
+  }
+
+  const result = await expenseModel.insertMany(validExpenses);
+
+  // Invalidate cache
+  const cacheKeys = await redisClient.keys(`expenses:${userId}:*`);
+  if (cacheKeys.length > 0) {
+    await redisClient.del(cacheKeys);
+  }
 
   return res
     .status(201)
@@ -281,6 +337,12 @@ const bulkDeleteExpenses = asyncHandler(async (req, res) => {
     _id: { $in: ids },
     user: userId,
   });
+
+  // Invalidate cache
+  const cacheKeys = await redisClient.keys(`expenses:${userId}:*`);
+  if (cacheKeys.length > 0) {
+    await redisClient.del(cacheKeys);
+  }
 
   return res
     .status(200)
@@ -328,6 +390,31 @@ const getExpenseSummary = async (req, res) => {
   }
 };
 
+const exportExpenses = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+
+  const expenses = await expenseModel.find({ user: userId }).sort({ date: -1 });
+
+  const csvData = stringify(
+    expenses.map((expense) => ({
+      amount: expense.amount,
+      description: expense.description,
+      date: expense.date.toISOString().split("T")[0], // Format date as YYYY-MM-DD
+      category: expense.category,
+      paymentMethod: expense.paymentMethod,
+    })),
+    {
+      header: true,
+      columns: ["amount", "description", "date", "category", "paymentMethod"],
+    }
+  );
+
+  res.setHeader("Content-Type", "text/csv");
+  res.setHeader("Content-Disposition", "attachment; filename=expenses.csv");
+
+  return res.status(200).send(csvData);
+});
+
 export {
   addExpense,
   getExpenses,
@@ -337,4 +424,5 @@ export {
   bulkUploadExpenses,
   bulkDeleteExpenses,
   getExpenseSummary,
+  exportExpenses,
 };
