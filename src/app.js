@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import admin from "firebase-admin";
-import { bookRouter } from "./routers/book.router.js";
+import { expenseRouter } from "./routers/expense.router.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,6 +57,6 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1/users", userRouter);
-app.use("/api/v1/books", bookRouter);
+app.use("/api/v1/expenses", expenseRouter);
 
 export { app };

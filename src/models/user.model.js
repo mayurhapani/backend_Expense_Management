@@ -28,39 +28,9 @@ const userSchema = new Schema(
       type: String,
       default: "",
     },
-    borrowedBooks: [
-      {
-        book: {
-          type: Schema.Types.ObjectId,
-          ref: "Book",
-        },
-        borrowDate: Date,
-        returnDate: Date,
-      },
-    ],
   },
   { timestamps: true }
 );
-
-const borrowedBookSchema = new Schema({
-  book: {
-    type: Schema.Types.ObjectId,
-    ref: "Book",
-    required: true,
-  },
-  borrowDate: {
-    type: Date,
-    default: Date.now,
-  },
-  returnDate: {
-    type: Date,
-    required: true,
-  },
-});
-
-userSchema.add({
-  borrowedBooks: [borrowedBookSchema],
-});
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
@@ -77,10 +47,11 @@ userSchema.methods.generateToken = function () {
   return jwt.sign(
     {
       _id: this._id,
+      role: this.role,
     },
     process.env.TOKEN_SECRET,
     { expiresIn: process.env.TOKEN_EXPIRY }
   );
 };
 
-export const userModel = mongoose.model("User", userSchema);
+export const User = mongoose.model("User", userSchema);

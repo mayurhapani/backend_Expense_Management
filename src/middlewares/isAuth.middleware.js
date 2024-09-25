@@ -1,28 +1,27 @@
-import { userModel } from "../models/user.model.js";
 import jwt from "jsonwebtoken";
+import { User } from "../models/user.model.js";
+import { ApiError } from "../utils/apiError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-const isAuth = async (req, res, next) => {
+export const isAuth = asyncHandler(async (req, res, next) => {
   try {
-    const token =
-      req.cookies.token || req.header("Authorization")?.replace("Bearer ", "");
+    const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
+
     if (!token) {
-      req.user = null;
-      return next();
+      throw new ApiError(401, "Unauthorized request");
     }
 
-    const { id } = await jwt.verify(token, process.env.JWT_SECRET);
-    const user = await userModel.findOne({ _id: id });
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+
+    const user = await User.findById(decodedToken?._id).select("-password -refreshToken");
 
     if (!user) {
-      req.user = null;
-    } else {
-      req.user = user;
+      throw new ApiError(401, "Invalid Access Token");
     }
+
+    req.user = user;
     next();
   } catch (error) {
-    req.user = null;
-    next();
+    throw new ApiError(401, error?.message || "Invalid access token");
   }
-};
-
-export { isAuth };
+});
