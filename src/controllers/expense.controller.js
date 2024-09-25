@@ -2,8 +2,8 @@ import { Expense } from "../models/expense.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { parse } from 'csv-parse/sync';
-import redisClient from '../config/redis.js';
+import { parse } from "csv-parse/sync";
+import redisClient from "../config/redis.js";
 
 const addExpense = asyncHandler(async (req, res) => {
   const { amount, description, date, category, paymentMethod } = req.body;
@@ -42,9 +42,15 @@ const getExpenses = asyncHandler(async (req, res) => {
   const cachedResult = await redisClient.get(cacheKey);
 
   if (cachedResult) {
-    return res.status(200).json(
-      new ApiResponse(200, JSON.parse(cachedResult), "Expenses retrieved from cache")
-    );
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          JSON.parse(cachedResult),
+          "Expenses retrieved from cache"
+        )
+      );
   }
 
   const query = { user: userId };
@@ -61,20 +67,19 @@ const getExpenses = asyncHandler(async (req, res) => {
 
   const total = await Expense.countDocuments(query);
 
-  const result = { expenses, total, page, totalPages: Math.ceil(total / limit) };
+  const result = {
+    expenses,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+  };
 
   // Cache the result for 5 minutes
   await redisClient.setEx(cacheKey, 300, JSON.stringify(result));
 
   return res
     .status(200)
-    .json(
-      new ApiResponse(
-        200,
-        result,
-        "Expenses retrieved successfully"
-      )
-    );
+    .json(new ApiResponse(200, result, "Expenses retrieved successfully"));
 });
 
 const updateExpense = asyncHandler(async (req, res) => {
@@ -229,23 +234,29 @@ const bulkUploadExpenses = asyncHandler(async (req, res) => {
 
   const records = parse(csvData, {
     columns: true,
-    skip_empty_lines: true
+    skip_empty_lines: true,
   });
 
-  const expenses = records.map(record => ({
+  const expenses = records.map((record) => ({
     user: userId,
     amount: parseFloat(record.amount),
     description: record.description,
     date: new Date(record.date),
     category: record.category,
-    paymentMethod: record.paymentMethod
+    paymentMethod: record.paymentMethod,
   }));
 
   const result = await Expense.insertMany(expenses);
 
-  return res.status(201).json(
-    new ApiResponse(201, result, `${result.length} expenses uploaded successfully`)
-  );
+  return res
+    .status(201)
+    .json(
+      new ApiResponse(
+        201,
+        result,
+        `${result.length} expenses uploaded successfully`
+      )
+    );
 });
 
 const bulkDeleteExpenses = asyncHandler(async (req, res) => {
@@ -258,12 +269,18 @@ const bulkDeleteExpenses = asyncHandler(async (req, res) => {
 
   const result = await Expense.deleteMany({
     _id: { $in: ids },
-    user: userId
+    user: userId,
   });
 
-  return res.status(200).json(
-    new ApiResponse(200, result, `${result.deletedCount} expenses deleted successfully`)
-  );
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        result,
+        `${result.deletedCount} expenses deleted successfully`
+      )
+    );
 });
 
 export {
@@ -273,5 +290,5 @@ export {
   deleteExpense,
   getExpenseStatistics,
   bulkUploadExpenses,
-  bulkDeleteExpenses
+  bulkDeleteExpenses,
 };

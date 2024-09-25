@@ -2,7 +2,6 @@ import { userModel } from "../models/user.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { sendTaskNotification } from "../helpers/firebaseAdmin.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
@@ -89,7 +88,7 @@ const login = asyncHandler(async (req, res) => {
     res.cookie("token", token, {
       httpOnly: true,
       secure: true, // Always use secure in production
-      sameSite: 'none', // This allows cross-site cookie setting
+      sameSite: "none", // This allows cross-site cookie setting
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
