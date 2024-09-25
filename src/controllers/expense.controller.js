@@ -1,4 +1,4 @@
-import { Expense } from "../models/expense.model.js";
+import { expenseModel } from "../models/expense.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -6,25 +6,31 @@ import { parse } from "csv-parse/sync";
 import redisClient from "../config/redis.js";
 
 const addExpense = asyncHandler(async (req, res) => {
-  const { amount, description, date, category, paymentMethod } = req.body;
-  const userId = req.user._id;
+  try {
+    const { amount, description, date, category, paymentMethod } = req.body;
 
-  if (!amount || !description || !date || !category || !paymentMethod) {
-    throw new ApiError(400, "All fields are required");
+    const userId = req.user._id;
+
+    if (!amount || !description || !date || !category || !paymentMethod) {
+      throw new ApiError(400, "All fields are required");
+    }
+
+    const expense = await expenseModel.create({
+      user: userId,
+      amount,
+      description,
+      date,
+      category,
+      paymentMethod,
+    });
+
+    return res
+      .status(201)
+      .json(new ApiResponse(201, expense, "Expense added successfully"));
+  } catch (error) {
+    console.error("Error in addExpense:", error);
+    throw new ApiError(500, "Failed to add expense: " + error.message);
   }
-
-  const expense = await Expense.create({
-    user: userId,
-    amount,
-    description,
-    date,
-    category,
-    paymentMethod,
-  });
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, expense, "Expense added successfully"));
 });
 
 const getExpenses = asyncHandler(async (req, res) => {
@@ -60,12 +66,13 @@ const getExpenses = asyncHandler(async (req, res) => {
     query.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
   }
 
-  const expenses = await Expense.find(query)
+  const expenses = await expenseModel
+    .find(query)
     .sort({ date: -1 })
     .skip((page - 1) * limit)
     .limit(Number(limit));
 
-  const total = await Expense.countDocuments(query);
+  const total = await expenseModel.countDocuments(query);
 
   const result = {
     expenses,
@@ -87,7 +94,7 @@ const updateExpense = asyncHandler(async (req, res) => {
   const { amount, description, date, category, paymentMethod } = req.body;
   const userId = req.user._id;
 
-  const expense = await Expense.findOneAndUpdate(
+  const expense = await expenseModel.findOneAndUpdate(
     { _id: id, user: userId },
     { amount, description, date, category, paymentMethod },
     { new: true }
@@ -106,7 +113,10 @@ const deleteExpense = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const userId = req.user._id;
 
-  const expense = await Expense.findOneAndDelete({ _id: id, user: userId });
+  const expense = await expenseModel.findOneAndDelete({
+    _id: id,
+    user: userId,
+  });
 
   if (!expense) {
     throw new ApiError(404, "Expense not found");
@@ -129,7 +139,7 @@ const getExpenseStatistics = asyncHandler(async (req, res) => {
     },
   };
 
-  const statistics = await Expense.aggregate([
+  const statistics = await expenseModel.aggregate([
     { $match: matchStage },
     {
       $group: {
@@ -246,7 +256,7 @@ const bulkUploadExpenses = asyncHandler(async (req, res) => {
     paymentMethod: record.paymentMethod,
   }));
 
-  const result = await Expense.insertMany(expenses);
+  const result = await expenseModel.insertMany(expenses);
 
   return res
     .status(201)
@@ -267,7 +277,7 @@ const bulkDeleteExpenses = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Valid expense IDs are required");
   }
 
-  const result = await Expense.deleteMany({
+  const result = await expenseModel.deleteMany({
     _id: { $in: ids },
     user: userId,
   });
@@ -288,32 +298,32 @@ const getExpenseSummary = async (req, res) => {
     const userId = req.user._id; // Assuming you have user authentication middleware
 
     // Get total expenses
-    const totalExpenses = await Expense.aggregate([
+    const totalExpenses = await expenseModel.aggregate([
       { $match: { user: userId } },
-      { $group: { _id: null, total: { $sum: "$amount" } } }
+      { $group: { _id: null, total: { $sum: "$amount" } } },
     ]);
 
     // Get top expense categories
-    const categories = await Expense.aggregate([
+    const categories = await expenseModel.aggregate([
       { $match: { user: userId } },
       { $group: { _id: "$category", total: { $sum: "$amount" } } },
       { $sort: { total: -1 } },
       { $limit: 3 },
-      { $project: { _id: 0, name: "$_id", total: 1 } }
+      { $project: { _id: 0, name: "$_id", total: 1 } },
     ]);
 
     res.status(200).json({
       success: true,
       data: {
         totalExpenses: totalExpenses[0]?.total || 0,
-        categories: categories
-      }
+        categories: categories,
+      },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: "Error fetching expense summary",
-      error: error.message
+      error: error.message,
     });
   }
 };
