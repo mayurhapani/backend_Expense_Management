@@ -59,4 +59,14 @@ app.get("/", (req, res) => {
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/expenses", expenseRouter);
 
+app.get("/test-redis", async (req, res) => {
+  try {
+    await redisClient.set("test", "Hello Redis");
+    const value = await redisClient.get("test");
+    res.send(`Redis is working. Test value: ${value}`);
+  } catch (error) {
+    res.status(500).send(`Redis error: ${error.message}`);
+  }
+});
+
 export { app };
