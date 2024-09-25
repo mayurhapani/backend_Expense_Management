@@ -5,7 +5,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 import redisClient from "../config/redis.js";
-import { parse as parseDate } from 'date-fns';
+import { parse as parseDate } from "date-fns";
 
 const addExpense = asyncHandler(async (req, res) => {
   try {
@@ -237,20 +237,19 @@ const getExpenseStatistics = asyncHandler(async (req, res) => {
 });
 
 const bulkUploadExpenses = asyncHandler(async (req, res) => {
-  console.log("Received file:", req.file);  // Log the received file
-
   if (!req.file) {
     throw new ApiError(400, "CSV file is required");
   }
 
   const userId = req.user._id;
   const csvData = req.file.buffer.toString();
-  console.log("CSV Data:", csvData);  // Log the CSV data
 
   const records = parse(csvData, {
     columns: true,
     skip_empty_lines: true,
-  }).filter(record => Object.values(record).some(value => value.trim() !== ''));
+  }).filter((record) =>
+    Object.values(record).some((value) => value.trim() !== "")
+  );
 
   const validExpenses = [];
   const errors = [];
@@ -260,9 +259,9 @@ const bulkUploadExpenses = asyncHandler(async (req, res) => {
     const amount = parseFloat(record.amount);
     let date;
     try {
-      date = parseDate(record.date, 'M/d/yyyy', new Date());
+      date = parseDate(record.date, "M/d/yyyy", new Date());
       if (isNaN(date.getTime())) {
-        throw new Error('Invalid date');
+        throw new Error("Invalid date");
       }
     } catch (error) {
       rowErrors.push("Invalid date format. Use M/D/YYYY");
@@ -282,7 +281,13 @@ const bulkUploadExpenses = asyncHandler(async (req, res) => {
 
     if (rowErrors.length > 0) {
       errors.push(`Row ${index + 2}: ${rowErrors.join(", ")}`);
-    } else if (amount && date && record.description && record.category && record.paymentMethod) {
+    } else if (
+      amount &&
+      date &&
+      record.description &&
+      record.category &&
+      record.paymentMethod
+    ) {
       validExpenses.push({
         user: userId,
         amount,
@@ -295,15 +300,21 @@ const bulkUploadExpenses = asyncHandler(async (req, res) => {
   });
 
   if (errors.length > 0) {
-    return res.status(400).json(
-      new ApiResponse(400, { errors, validCount: validExpenses.length }, "Validation errors in CSV data")
-    );
+    return res
+      .status(400)
+      .json(
+        new ApiResponse(
+          400,
+          { errors, validCount: validExpenses.length },
+          "Validation errors in CSV data"
+        )
+      );
   }
 
   if (validExpenses.length === 0) {
-    return res.status(400).json(
-      new ApiResponse(400, null, "No valid expenses found in CSV")
-    );
+    return res
+      .status(400)
+      .json(new ApiResponse(400, null, "No valid expenses found in CSV"));
   }
 
   const result = await expenseModel.insertMany(validExpenses);
