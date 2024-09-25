@@ -283,6 +283,41 @@ const bulkDeleteExpenses = asyncHandler(async (req, res) => {
     );
 });
 
+const getExpenseSummary = async (req, res) => {
+  try {
+    const userId = req.user._id; // Assuming you have user authentication middleware
+
+    // Get total expenses
+    const totalExpenses = await Expense.aggregate([
+      { $match: { user: userId } },
+      { $group: { _id: null, total: { $sum: "$amount" } } }
+    ]);
+
+    // Get top expense categories
+    const categories = await Expense.aggregate([
+      { $match: { user: userId } },
+      { $group: { _id: "$category", total: { $sum: "$amount" } } },
+      { $sort: { total: -1 } },
+      { $limit: 3 },
+      { $project: { _id: 0, name: "$_id", total: 1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalExpenses: totalExpenses[0]?.total || 0,
+        categories: categories
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching expense summary",
+      error: error.message
+    });
+  }
+};
+
 export {
   addExpense,
   getExpenses,
@@ -291,4 +326,5 @@ export {
   getExpenseStatistics,
   bulkUploadExpenses,
   bulkDeleteExpenses,
+  getExpenseSummary,
 };

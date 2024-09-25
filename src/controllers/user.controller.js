@@ -78,17 +78,18 @@ const login = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(401, "Invalid email or password");
   }
-
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
     throw new ApiError(401, "Invalid email or password");
   } else {
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
+    });
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true, // Always use secure in production
-      sameSite: "none", // This allows cross-site cookie setting
+      secure: true,
+      sameSite: "none",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
@@ -112,27 +113,21 @@ const logout = asyncHandler(async (req, res) => {
 });
 
 const getUser = asyncHandler(async (req, res) => {
-  if (!req.user) {
-    return res
-      .status(200)
-      .json(new ApiResponse(200, null, "User is not authenticated"));
+  try {
+    const user = await userModel.findById(req.user._id).select("-password");
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error in getUser:", error);
+    throw new ApiError(500, "Error fetching user data");
   }
-
-  const user = await userModel
-    .findById(req.user._id)
-    .populate({
-      path: "borrowedBooks.book",
-      select: "title author genre image",
-    })
-    .select("-password");
-
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
-
-  return res
-    .status(200)
-    .json(new ApiResponse(200, user, "User data retrieved successfully"));
 });
 
 const getAllUsers = asyncHandler(async (req, res) => {

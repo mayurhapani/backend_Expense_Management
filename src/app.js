@@ -69,4 +69,13 @@ app.get("/test-redis", async (req, res) => {
   }
 });
 
+// app.use((err, req, res, next) => {
+//   console.error('Error details:', err);
+//   res.status(err.status || 500).json({
+//     success: false,
+//     message: err.message,
+//     stack: process.env.NODE_ENV === 'production' ? '🥞' : err.stack
+//   });
+// });
+
 export { app };

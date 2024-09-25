@@ -7,6 +7,7 @@ import {
   getExpenseStatistics,
   bulkUploadExpenses,
   bulkDeleteExpenses,
+  getExpenseSummary,
 } from "../controllers/expense.controller.js";
 import { isAuth } from "../middlewares/isAuth.middleware.js";
 import { authorize } from "../middlewares/rbac.middleware.js";
@@ -20,6 +21,7 @@ expenseRouter.use(isAuth);
 expenseRouter.post("/", addExpense);
 expenseRouter.get("/", getExpenses);
 expenseRouter.get("/statistics", getExpenseStatistics);
+expenseRouter.get("/summary", getExpenseSummary);
 expenseRouter.patch("/:id", updateExpense);
 expenseRouter.delete("/:id", deleteExpense);
 expenseRouter.post("/bulk-upload", upload.single("file"), bulkUploadExpenses);

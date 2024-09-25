@@ -4,6 +4,11 @@ import { app } from "./app.js";
 
 dotenv.config({ path: "./.env" });
 
+if (!process.env.JWT_SECRET) {
+  console.error("JWT_SECRET is not set!");
+  process.exit(1);
+}
+
 connectDB()
   .then(() => {
     app.listen(process.env.PORT || 8001, () => {
