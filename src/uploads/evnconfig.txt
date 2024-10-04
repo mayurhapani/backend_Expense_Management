@@ -3,10 +3,14 @@ MONGODB_URI="mongodb+srv://hapanimayur:Love1224@cluster0.iyurgqh.mongodb.net"
 
 CORS_ORIGIN=http://localhost:5173
 
-TOKEN_SECRET=YP5igMJ0i3yy22wGw2S25NNMf84gc7bm
+ACCESS_TOKEN_SECRET=YP5igMJ0i3yy22wGw2S25NNMf84gc7bm
 TOKEN_EXPIRY=10d
 
 JWT_SECRET= hello_i_am_mayur
+
+REDIS_URL=redis-15371.c305.ap-south-1-1.ec2.redns.redis-cloud.com
+REDIS_PORT=15371
+REDIS_PASSWORD=CAYRi7A5z6OEu9pvg9AVapIKUtKo26sT
 
 FIREBASE_TYPE=service_account
 FIREBASE_PROJECT_ID=task-management-app-507ed
